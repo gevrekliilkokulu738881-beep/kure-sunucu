@@ -14,34 +14,31 @@ io.on('connection', (socket) => {
     // Bağlanan herkese güncel listeyi yolla
     socket.emit('liste_guncelle', masalar);
 
-    socket.on('masa_kur', (data) => {
-        // Masa ID'sini kurucu socket ID'si yapıyoruz
-        const masaId = socket.id;
-        masalar[masaId] = { 
-            id: masaId, 
-            isim: data.isim || "İsimsiz Masa", 
-            durum: 'bekliyor' 
-        };
-        socket.join(masaId);
-        console.log("Masa kuruldu:", masaId);
-        io.emit('liste_guncelle', masalar); // Herkese yeni masayı göster
-    });
+   // server.js içindeki ilgili kısımları bu şekilde düzelt:
 
-    socket.on('masaya_otur', (masaId) => {
-        if (masalar[masaId] && masalar[masaId].durum === 'bekliyor') {
-            masalar[masaId].durum = 'dolu';
-            socket.join(masaId);
-            io.emit('liste_guncelle', masalar); // Masa doldu, listeden kaldır/güncelle
-            io.to(masaId).emit('oyun_basla', { oda: masaId });
-        }
-    });
+socket.on('masa_kur', (data) => {
+    const masaId = socket.id;
+    masalar[masaId] = { id: masaId, isim: data.isim, durum: 'bekliyor' };
+    socket.join(masaId); // KURUCU ODAYA GİRER
+    io.emit('liste_guncelle', masalar);
+});
 
-    socket.on('hamle_yap', (data) => {
-        if (data.oda) {
-            // Hamleyi gönderen hariç odadaki diğerine ilet
-            socket.to(data.oda).emit('hamle_geldi', data);
-        }
-    });
+socket.on('masaya_otur', (masaId) => {
+    if (masalar[masaId]) {
+        masalar[masaId].durum = 'dolu';
+        socket.join(masaId); // KATILAN ODAYA GİRER
+        io.emit('liste_guncelle', masalar);
+        // İki tarafa da oyunun başladığını ve oda ID'sini bildir
+        io.to(masaId).emit('oyun_basla', { oda: masaId });
+    }
+});
+
+socket.on('hamle_yap', (data) => {
+    // Hamleyi odaya gönder (gönderen kişi hariç herkese gider)
+    if (data.oda) {
+        socket.to(data.oda).emit('hamle_geldi', data);
+    }
+});
 
     socket.on('disconnect', () => {
         console.log("Ayrıldı:", socket.id);
@@ -58,3 +55,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda hazır.`));
+
