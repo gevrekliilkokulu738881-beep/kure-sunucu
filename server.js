@@ -1,10 +1,13 @@
 const express = require('express');
+const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
+
+app.use(express.static(path.join(__dirname, 'public'))); // index.html'i public klasörüne koyarsan
 
 let masalar = {}; 
 let socketOdaMap = {}; 
@@ -42,7 +45,6 @@ io.on('connection', (socket) => {
         if(!revansIstekleri[odaId]) revansIstekleri[odaId] = {};
         revansIstekleri[odaId][data.role] = true;
         socket.to(odaId).emit('revans_teklifi', { role: data.role });
-
         if(revansIstekleri[odaId].mor && revansIstekleri[odaId].turuncu) {
             delete revansIstekleri[odaId];
             io.to(odaId).emit('oyun_reset');
@@ -53,13 +55,11 @@ io.on('connection', (socket) => {
         const odaId = socketOdaMap[socket.id];
         if (odaId) {
             socket.to(odaId).emit('rakip_ayrildi');
-            delete masalar[odaId];
-            delete socketOdaMap[socket.id];
-            delete revansIstekleri[odaId];
+            delete masalar[odaId]; delete socketOdaMap[socket.id]; delete revansIstekleri[odaId];
             io.emit('liste_guncelle', masalar);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda hazır.`));
+httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
