@@ -6,18 +6,18 @@ const path = require('path');
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-    cors: { origin: "*" } 
+    cors: { origin: "*" }
 });
 
-// Render için dosyaları servis etme
-app.use(express.static(__dirname));
+// GitHub'daki dosyaları servis et
+app.use(express.static(path.join(__dirname, '.')));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-let masalar = {}; 
-let socketOdaMap = {}; 
+let masalar = {};
+let socketOdaMap = {};
 
 io.on('connection', (socket) => {
     socket.emit('liste_guncelle', masalar);
@@ -55,6 +55,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// RENDER İÇİN KRİTİK: Portu Render belirler
+// RENDER PORT AYARI
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
+httpServer.listen(PORT, () => console.log(`Oyun ${PORT} portunda yayında.`));
