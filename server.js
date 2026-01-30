@@ -20,14 +20,12 @@ io.on('connection', (socket) => {
         if (masalar[masaId]) {
             masalar[masaId].durum = 'dolu';
             io.emit('liste_guncelle', masalar);
-            // Herkese oyunun başladığını duyur
             io.emit('oyun_basla', { oda: masaId });
         }
     });
 
     socket.on('hamle_yap', (data) => {
-        // ODA SİSTEMİNİ BIRAKTIK: Hamleyi HERKESE gönderiyoruz.
-        // İlgili oyuncu data.oda kontrolü ile hamleyi alacak.
+        // Gelen hamleyi istisnasız herkese gönder
         io.emit('hamle_geldi', data);
     });
 
@@ -38,4 +36,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} aktif.`));
+httpServer.listen(PORT, () => console.log(`Sunucu aktif.`));
