@@ -1,13 +1,13 @@
 const express = require('express');
-const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
-app.use(express.static(path.join(__dirname, 'public'))); // index.html'i public klasörüne koyarsan
+app.use(express.static(__dirname)); 
 
 let masalar = {}; 
 let socketOdaMap = {}; 
@@ -36,18 +36,15 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('hamle_yap', (data) => {
-        socket.to(data.oda).emit('hamle_geldi', data);
-    });
+    socket.on('hamle_yap', (data) => socket.to(data.oda).emit('hamle_geldi', data));
 
     socket.on('revans_iste', (data) => {
-        const odaId = data.oda;
-        if(!revansIstekleri[odaId]) revansIstekleri[odaId] = {};
-        revansIstekleri[odaId][data.role] = true;
-        socket.to(odaId).emit('revans_teklifi', { role: data.role });
-        if(revansIstekleri[odaId].mor && revansIstekleri[odaId].turuncu) {
-            delete revansIstekleri[odaId];
-            io.to(odaId).emit('oyun_reset');
+        if(!revansIstekleri[data.oda]) revansIstekleri[data.oda] = {};
+        revansIstekleri[data.oda][data.role] = true;
+        socket.to(data.oda).emit('revans_teklifi', { role: data.role });
+        if(revansIstekleri[data.oda].mor && revansIstekleri[data.oda].turuncu) {
+            delete revansIstekleri[data.oda];
+            io.to(data.oda).emit('oyun_reset');
         }
     });
 
@@ -61,5 +58,4 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
+httpServer.listen(3000, () => console.log("Küre Sunucusu 3000 portunda hazır!"));
