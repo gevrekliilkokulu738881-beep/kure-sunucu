@@ -1,69 +1,49 @@
 const express = require('express');
-const { createServer } = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: "*" } });
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Statik dosyaları (html, css, js) ana dizinden oku
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 let masalar = {};
-let socketOdaMap = {};
-let revansIstekleri = {};
 
 io.on('connection', (socket) => {
-    socket.emit('liste_guncelle', masalar);
+    // Mevcut masaları gönder
+    socket.emit('liste', masalar);
 
-    socket.on('masa_kur', (data) => {
+    socket.on('kur', (isim) => {
         const odaId = "oda_" + socket.id;
+        masalar[odaId] = { id: odaId, sahibi: isim || "Oyuncu", durum: 'bekliyor' };
         socket.join(odaId);
-        masalar[odaId] = { id: odaId, isim: data.isim || "Oyuncu", durum: 'bekliyor' };
-        socketOdaMap[socket.id] = odaId;
-        io.emit('liste_guncelle', masalar);
-        socket.emit('bekleme_modu');
+        io.emit('liste', masalar); // Herkese listeyi güncelle
+        socket.emit('oda_onay', odaId);
     });
 
-    socket.on('masaya_otur', (id) => {
-        if (masalar[id] && masalar[id].durum === 'bekliyor') {
-            socket.join(id);
-            masalar[id].durum = 'dolu';
-            socketOdaMap[socket.id] = id;
-            io.emit('liste_guncelle', masalar);
-            io.to(id).emit('oyun_basla', { oda: id });
+    socket.on('katil', (odaId) => {
+        if (masalar[odaId]) {
+            masalar[odaId].durum = 'dolu';
+            socket.join(odaId);
+            io.emit('liste', masalar);
+            io.to(odaId).emit('baslat', odaId);
         }
     });
 
-    socket.on('hamle_yap', (data) => {
-        socket.to(data.oda).emit('hamle_geldi', data);
-    });
-
-    socket.on('revans_iste', (data) => {
-        const odaId = data.oda;
-        if(!revansIstekleri[odaId]) revansIstekleri[odaId] = {};
-        revansIstekleri[odaId][data.role] = true;
-        socket.to(odaId).emit('revans_teklifi', { role: data.role });
-        if(revansIstekleri[odaId].mor && revansIstekleri[odaId].turuncu) {
-            delete revansIstekleri[odaId];
-            io.to(odaId).emit('oyun_reset');
-        }
+    socket.on('hamle', (data) => {
+        socket.to(data.oda).emit('rakip_hamle', data);
     });
 
     socket.on('disconnect', () => {
-        const odaId = socketOdaMap[socket.id];
-        if (odaId) {
-            socket.to(odaId).emit('rakip_ayrildi');
+        const odaId = "oda_" + socket.id;
+        if (masalar[odaId]) {
             delete masalar[odaId];
+            io.emit('liste', masalar);
         }
-        io.emit('liste_guncelle', masalar);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log("Sunucu hazir."));
+server.listen(PORT, () => console.log("Sunucu " + PORT + " üzerinde aktif."));
