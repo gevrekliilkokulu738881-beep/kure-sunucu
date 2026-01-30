@@ -14,6 +14,22 @@ const io = new Server(httpServer, {
 });
 
 let masalar = {};
+let banListesi = new Set(); // Banlanan socket ID'leri burada tutulur
+
+// io.on('connection', (socket) => { içinde mesaj kısmını şöyle güncelle:
+socket.on('mesaj_gonder', (data) => {
+    if (banListesi.has(socket.id)) {
+        socket.emit('yeni_mesaj', { kim: "SİSTEM", metin: "Küfür nedeniyle banlandınız, mesaj gönderemezsiniz!", renk: "red" });
+        return;
+    }
+    io.to(data.oda).emit('yeni_mesaj', data);
+});
+
+// Küfür tespit edildiğinde banlamak için yeni bir event:
+socket.on('kullanici_banla', (socketId) => {
+    banListesi.add(socketId);
+    console.log("Kullanıcı banlandı:", socketId);
+});
 
 io.on('connection', (socket) => {
     console.log("Yeni bir oyuncu bağlandı:", socket.id);
@@ -45,3 +61,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
+
