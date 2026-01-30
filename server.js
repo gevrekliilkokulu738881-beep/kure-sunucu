@@ -40,12 +40,12 @@ io.on('connection', (socket) => {
         if (masalar[socket.id]) {
             io.emit('rakip_ayrildi', { oda: socket.id });
             delete masalar[socket.id];
-            io.emit('liste_guncelle', masalar);
+        } else {
+            Object.keys(masalar).forEach(masaId => {
+                io.emit('rakip_ayrildi', { oda: masaId });
+            });
         }
-        // Oyuncu misafir ise bulunduğu odayı bul ve kapat
-        Object.keys(masalar).forEach(masaId => {
-            io.emit('rakip_ayrildi', { oda: masaId });
-        });
+        io.emit('liste_guncelle', masalar);
     };
 
     socket.on('disconnect', temizle);
