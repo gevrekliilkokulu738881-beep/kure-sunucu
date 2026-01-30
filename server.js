@@ -11,25 +11,23 @@ let masalar = {};
 io.on('connection', (socket) => {
     socket.emit('liste_guncelle', masalar);
 
-   socket.on('masa_kur', (data) => {
-    const masaId = socket.id;
-    masalar[masaId] = { 
-        id: masaId, 
-        isim: data.isim || "İsimsiz", 
-        sifre: (data.sifre && data.sifre.trim() !== "") ? data.sifre : null, // Boş string ise null yap
-        durum: 'bekliyor' 
-    };
-    io.emit('liste_guncelle', masalar);
-});
+    socket.on('masa_kur', (data) => {
+        masalar[socket.id] = { 
+            id: socket.id, 
+            isim: data.isim || "İsimsiz", 
+            sifre: (data.sifre && data.sifre.trim() !== "") ? data.sifre : null, 
+            durum: 'bekliyor' 
+        };
+        io.emit('liste_guncelle', masalar);
+    });
 
     socket.on('masaya_otur', (data) => {
-        const masa = masalar[data.id];
-        if (masa && masa.durum === 'bekliyor') {
-            if (masa.sifre && masa.sifre !== data.sifre) {
+        if (masalar[data.id] && masalar[data.id].durum === 'bekliyor') {
+            if (masalar[data.id].sifre && masalar[data.id].sifre !== data.sifre) {
                 socket.emit('hata', 'Hatalı şifre!');
                 return;
             }
-            masa.durum = 'dolu';
+            masalar[data.id].durum = 'dolu';
             io.emit('liste_guncelle', masalar);
             io.emit('oyun_basla', { oda: data.id });
         }
@@ -38,12 +36,17 @@ io.on('connection', (socket) => {
     socket.on('hamle_yap', (data) => io.emit('hamle_geldi', data));
     socket.on('chat_gonder', (data) => io.emit('chat_geldi', data));
 
-    socket.on('disconnect', () => {
-        if (masalar[socket.id]) delete masalar[socket.id];
-        io.emit('liste_guncelle', masalar);
-    });
+    // Masadan manuel ayrılma veya bağlantı kopma
+    const temizle = () => {
+        if (masalar[socket.id]) {
+            delete masalar[socket.id];
+            io.emit('liste_guncelle', masalar);
+        }
+    };
+
+    socket.on('disconnect', temizle);
+    socket.on('masayi_kapat', temizle);
 });
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Sunucu aktif.`));
-
