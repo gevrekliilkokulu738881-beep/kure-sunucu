@@ -7,7 +7,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
-app.use(express.static(__dirname)); 
+app.use(express.static(__dirname));
 
 let masalar = {}; 
 let socketOdaMap = {}; 
@@ -52,10 +52,10 @@ io.on('connection', (socket) => {
         const odaId = socketOdaMap[socket.id];
         if (odaId) {
             socket.to(odaId).emit('rakip_ayrildi');
-            delete masalar[odaId]; delete socketOdaMap[socket.id]; delete revansIstekleri[odaId];
+            delete masalar[odaId]; delete socketOdaMap[socket.id];
             io.emit('liste_guncelle', masalar);
         }
     });
 });
 
-httpServer.listen(3000, () => console.log("Küre Sunucusu 3000 portunda hazır!"));
+httpServer.listen(3000, () => console.log("Sunucu 3000 portunda hazır."));
