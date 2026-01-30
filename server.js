@@ -9,7 +9,6 @@ const io = new Server(httpServer, {
     cors: { origin: "*" }
 });
 
-// Statik dosyaları sunmak için kritik satır
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
@@ -19,7 +18,7 @@ app.get('/', (req, res) => {
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log('Oyuncu geldi:', socket.id);
+    console.log('Oyuncu bağlandı:', socket.id);
     socket.emit('liste_guncelle', masalar);
 
     socket.on('masa_kur', (data) => {
@@ -55,9 +54,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        // Soket ID'sine göre odayı bul ve sil
         for (let id in masalar) {
-            if (id === "oda_" + socket.id || id === socket.id) {
+            if (id.includes(socket.id)) {
                 socket.to(id).emit('rakip_ayrildi');
                 delete masalar[id];
             }
@@ -67,4 +65,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log("Küre Sunucusu Hazır!"));
+httpServer.listen(PORT, () => console.log("Sunucu Aktif"));
