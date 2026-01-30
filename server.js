@@ -1,20 +1,16 @@
 const express = require('express');
-const { createServer } = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
-const httpServer = createServer(app);
-
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    },
-    transports: ['websocket', 'polling'] 
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" },
+    transports: ['polling', 'websocket'] // Önce polling (garantidir)
 });
 
-app.use(express.static(path.join(__dirname, '.')));
+app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -23,18 +19,13 @@ app.get('/', (req, res) => {
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log('Yeni baglanti:', socket.id);
+    console.log('Bağlantı başarılı:', socket.id);
     socket.emit('odalar', masalar);
 
     socket.on('oda_kur', (data) => {
         const odaId = "oda_" + socket.id;
         socket.join(odaId);
-        masalar[odaId] = { 
-            id: odaId, 
-            mor: data.isim || "Oyuncu 1", 
-            turuncu: "", 
-            durum: 'bekliyor' 
-        };
+        masalar[odaId] = { id: odaId, mor: data.isim || "Oyuncu 1", turuncu: "", durum: 'bekliyor' };
         io.emit('odalar', masalar);
     });
 
@@ -64,5 +55,8 @@ io.on('connection', (socket) => {
     });
 });
 
+// Render için kritik: 0.0.0.0 üzerinden dinle
 const PORT = process.env.PORT || 10000;
-httpServer.listen(PORT, "0.0.0.0", () => console.log(`Sunucu aktif: ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Sunucu ${PORT} portunda hazır!`);
+});
