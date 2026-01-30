@@ -6,14 +6,12 @@ const path = require('path');
 const app = express();
 const httpServer = createServer(app);
 
-// CORS ayarlarını en geniş haline getirdik
 const io = new Server(httpServer, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-        credentials: true
+        origin: "*", // Her yerden girişe izin ver
+        methods: ["GET", "POST"]
     },
-    allowEIO3: true // Eski sürüm uyumluluğu için
+    transports: ['websocket', 'polling'] // Bağlantı tipini zorla
 });
 
 app.use(express.static(__dirname));
@@ -25,7 +23,7 @@ app.get('/', (req, res) => {
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log('Bağlantı başarılı: ' + socket.id);
+    console.log('Oyuncu bağlandı:', socket.id);
     socket.emit('liste_guncelle', masalar);
 
     socket.on('masa_kur', (data) => {
@@ -72,4 +70,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log("SUNUCU 3000 PORTUNDA AKTİF"));
+httpServer.listen(PORT, "0.0.0.0", () => console.log("Sunucu Aktif"));
