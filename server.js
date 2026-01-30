@@ -11,15 +11,16 @@ let masalar = {};
 io.on('connection', (socket) => {
     socket.emit('liste_guncelle', masalar);
 
-    socket.on('masa_kur', (data) => {
-        masalar[socket.id] = { 
-            id: socket.id, 
-            isim: data.isim, 
-            sifre: data.sifre || null, 
-            durum: 'bekliyor' 
-        };
-        io.emit('liste_guncelle', masalar);
-    });
+   socket.on('masa_kur', (data) => {
+    const masaId = socket.id;
+    masalar[masaId] = { 
+        id: masaId, 
+        isim: data.isim || "İsimsiz", 
+        sifre: (data.sifre && data.sifre.trim() !== "") ? data.sifre : null, // Boş string ise null yap
+        durum: 'bekliyor' 
+    };
+    io.emit('liste_guncelle', masalar);
+});
 
     socket.on('masaya_otur', (data) => {
         const masa = masalar[data.id];
@@ -45,3 +46,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Sunucu aktif.`));
+
