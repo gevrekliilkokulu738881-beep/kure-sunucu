@@ -9,83 +9,86 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 let rooms = {};
+let tournamentQueue = []; // Turnuva bekleyenler
 
 io.on('connection', (socket) => {
     socket.emit('roomList', getPublicRooms());
 
-    // ŞİFRELİ MASA KURMA
+    // --- STANDART MASA KURMA ---
     socket.on('createRoom', (data) => {
         const { roomName, password } = data;
-        if (rooms[roomName]) return socket.emit('errorMsg', 'Bu isimde bir masa var!');
-        
+        if (rooms[roomName]) return socket.emit('errorMsg', 'Bu masa adı alınmış!');
         rooms[roomName] = {
-            password: password || "", // Şifre varsa sakla, yoksa boş bırak
-            hasPass: !!password,      // Şifre var mı yok mu?
+            password: password || "",
+            hasPass: !!password,
             players: {}, 
+            owner: socket.id, // İlk giren admin olur
             ready: { mor: false, turuncu: false }
         };
-        
         socket.emit('roomCreated', roomName);
         io.emit('roomList', getPublicRooms());
     });
 
-    // ŞİFRE KONTROLLÜ GİRİŞ
     socket.on('joinGame', (data) => {
-        const { roomName, password } = data;
-        const room = rooms[roomName];
-
+        const room = rooms[data.roomName];
         if (!room) return socket.emit('errorMsg', 'Masa bulunamadı!');
         if (Object.keys(room.players).length >= 2) return socket.emit('errorMsg', 'Masa dolu!');
-        
-        // Şifre kontrolü
-        if (room.hasPass && room.password !== password) {
-            return socket.emit('errorMsg', 'Hatalı şifre! Lütfen tekrar deneyin.');
-        }
+        if (room.hasPass && room.password !== data.password) return socket.emit('errorMsg', 'Şifre yanlış!');
 
         const role = Object.keys(room.players).length === 0 ? 'mor' : 'turuncu';
-        room.players[socket.id] = role;
+        room.players[socket.id] = { role, name: data.playerName || role };
         socket.role = role;
-        socket.room = roomName;
-
-        socket.join(roomName);
-        socket.emit('playerRole', { role: role, roomName: roomName });
-        io.emit('roomList', getPublicRooms());
+        socket.room = data.roomName;
+        socket.join(data.roomName);
+        socket.emit('playerRole', { role, roomName: data.roomName });
     });
 
-    socket.on('playerReady', (data) => {
-        const room = rooms[data.roomID];
-        if (room && socket.role) {
-            room.ready[socket.role] = data.ready;
-            io.to(data.roomID).emit('updateReadyStatus', {
-                morReady: room.ready.mor,
-                turuncuReady: room.ready.turuncu
-            });
+    // --- TURNUVA SİSTEMİ (4 KİŞİLİK) ---
+    socket.on('joinTournament', (playerName) => {
+        if (!tournamentQueue.find(p => p.id === socket.id)) {
+            tournamentQueue.push({ id: socket.id, name: playerName });
+            io.emit('tourUpdate', tournamentQueue.length);
+            
+            if (tournamentQueue.length === 4) {
+                const tourID = "TOUR_" + Date.now();
+                const players = [...tournamentQueue];
+                tournamentQueue = [];
+                // 1. Maç: Oyuncu 0 vs 1 | 2. Maç: Oyuncu 2 vs 3
+                io.to(players[0].id).to(players[1].id).emit('startTourMatch', { room: tourID + "_M1", opponent: "Yarı Final" });
+                io.to(players[2].id).to(players[3].id).emit('startTourMatch', { room: tourID + "_M2", opponent: "Yarı Final" });
+            }
         }
     });
 
-    socket.on('move', (data) => {
-        socket.to(data.roomID).emit('opponentMove', data);
+    // --- SOHBET VE BAN ---
+    socket.on('chatMsg', (data) => {
+        const badWords = ["küfür1", "küfür2"]; // Buraya engelenecek kelimeleri ekle
+        let cleanMsg = data.msg;
+        badWords.forEach(w => cleanMsg = cleanMsg.replace(new RegExp(w, 'gi'), '***'));
+        io.to(data.roomID).emit('newChat', { user: data.user, msg: cleanMsg, type: data.type });
     });
 
-    socket.on('disconnect', () => {
-        if (socket.room && rooms[socket.room]) {
-            delete rooms[socket.room].players[socket.id];
-            if (Object.keys(rooms[socket.room].players).length === 0) delete rooms[socket.room];
-            io.emit('roomList', getPublicRooms());
+    socket.on('kickPlayer', (roomID) => {
+        const room = rooms[roomID];
+        if (room && room.owner === socket.id) {
+            socket.to(roomID).emit('banned'); // Diğer oyuncuya ban gönder
         }
     });
+
+    // Standart hazır olma ve hamle iletme... (Önceki kodlar dahil)
+    socket.on('playerReady', (d) => {
+        const room = rooms[d.roomID];
+        if(room) {
+            room.ready[socket.role] = d.ready;
+            io.to(d.roomID).emit('updateReadyStatus', { morReady: room.ready.mor, turuncuReady: room.ready.turuncu });
+        }
+    });
+    socket.on('move', (d) => socket.to(d.roomID).emit('opponentMove', d));
 });
 
 function getPublicRooms() {
     let list = {};
-    for (let name in rooms) {
-        list[name] = { 
-            players: Object.keys(rooms[name].players).length, 
-            hasPass: rooms[name].hasPass // İstemciye kilit ikonu göstermesi için bilgi ver
-        };
-    }
+    for (let n in rooms) list[n] = { players: Object.keys(rooms[n].players).length, hasPass: rooms[n].hasPass };
     return list;
 }
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Sunucu ${PORT} aktif.`));
+server.listen(process.env.PORT || 3000);
