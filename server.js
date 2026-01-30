@@ -7,57 +7,51 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
-// Dosyaları sunucunun içine gömüyoruz
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-let masalar = {};
+let rooms = {};
 
 io.on('connection', (socket) => {
-    // Yeni girene masaları göster
-    socket.emit('liste', masalar);
+    socket.emit('updateRooms', rooms);
 
-    socket.on('kur', (data) => {
-        const odaId = "oda_" + socket.id;
-        socket.join(odaId);
-        masalar[odaId] = { 
-            id: odaId, 
-            mor: data.isim || "Oyuncu 1", 
-            turuncu: "", 
-            durum: 'bekliyor' 
+    socket.on('createRoom', (data) => {
+        const roomId = "room_" + socket.id;
+        socket.join(roomId);
+        rooms[roomId] = { 
+            id: roomId, 
+            p1: { id: socket.id, name: data.name, color: 'mor' },
+            p2: null,
+            status: 'waiting'
         };
-        io.emit('liste', masalar);
-        socket.emit('kuruldu', odaId);
+        io.emit('updateRooms', rooms);
+        socket.emit('waitingPlayer');
     });
 
-    socket.on('katil', (data) => {
-        const id = data.id;
-        if (masalar[id] && masalar[id].durum === 'bekliyor') {
-            socket.join(id);
-            masalar[id].turuncu = data.isim || "Oyuncu 2";
-            masalar[id].durum = 'dolu';
-            io.emit('liste', masalar);
-            io.to(id).emit('basla', masalar[id]);
+    socket.on('joinRoom', (data) => {
+        const room = rooms[data.id];
+        if (room && room.status === 'waiting') {
+            socket.join(data.id);
+            room.p2 = { id: socket.id, name: data.name, color: 'turuncu' };
+            room.status = 'playing';
+            io.emit('updateRooms', rooms);
+            io.to(data.id).emit('gameStart', room);
         }
     });
 
-    socket.on('hamle', (data) => {
-        socket.to(data.oda).emit('rakip_hamle', data);
+    socket.on('makeMove', (data) => {
+        socket.to(data.roomId).emit('opponentMove', data);
     });
 
     socket.on('disconnect', () => {
-        for (let id in masalar) {
-            if (id.includes(socket.id)) {
-                socket.to(id).emit('koptu');
-                delete masalar[id];
+        for (let id in rooms) {
+            if (rooms[id].p1.id === socket.id || (rooms[id].p2 && rooms[id].p2.id === socket.id)) {
+                socket.to(id).emit('playerLeft');
+                delete rooms[id];
             }
         }
-        io.emit('liste', masalar);
+        io.emit('updateRooms', rooms);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log("Sistem Hazir!"));
+httpServer.listen(PORT, () => console.log("Sunucu Hazir"));
