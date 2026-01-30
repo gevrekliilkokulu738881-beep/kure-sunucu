@@ -18,7 +18,7 @@ io.on('connection', (socket) => {
         masalar[odaId] = { id: odaId, kurucu: socket.id, isim: data.isim || "İsimsiz", durum: 'bekliyor' };
         socketOdaMap[socket.id] = odaId;
         io.emit('liste_guncelle', masalar);
-        socket.emit('bekleme_modu', { odaId });
+        socket.emit('bekleme_modu'); // Kurana onay gönder
     });
 
     socket.on('masaya_otur', (data) => {
@@ -33,21 +33,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('hamle_yap', (data) => socket.to(data.oda).emit('hamle_geldi', data));
-    socket.on('chat_gonder', (data) => io.to(data.oda).emit('chat_geldi', data));
 
-    const ayrilmaIslemi = () => {
+    socket.on('disconnect', () => {
         const odaId = socketOdaMap[socket.id];
         if (odaId) {
-            socket.to(odaId).emit('rakip_ayrildi'); // Rakibe haber ver
+            socket.to(odaId).emit('rakip_ayrildi');
             delete masalar[odaId];
             delete socketOdaMap[socket.id];
             io.emit('liste_guncelle', masalar);
         }
-    };
-
-    socket.on('disconnect', ayrilmaIslemi);
-    socket.on('masayi_kapat', ayrilmaIslemi);
+    });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu Sorunsuz Modda.`));
+httpServer.listen(PORT, () => console.log("Sunucu Hazır."));
