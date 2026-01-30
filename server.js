@@ -5,54 +5,80 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*", // Tüm bağlantılara izin ver
-        methods: ["GET", "POST"]
-    }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Statik dosyaları (HTML, CSS, JS) 'public' klasöründen sun
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Aktif odaların bilgisini tutan obje
+const activeRooms = {}; 
+
 io.on('connection', (socket) => {
-    console.log('Bağlantı başarılı: ' + socket.id);
+    // Bağlanan kişiye mevcut odaları gönder
+    socket.emit('roomList', activeRooms);
 
-    // Oyuncu bir masaya katılmak istediğinde
-    socket.on('joinGame', (roomID) => {
-        const room = io.sockets.adapter.rooms.get(roomID);
-        const numClients = room ? room.size : 0;
+    socket.on('createRoom', (data) => {
+        const { roomName, password } = data;
+        if (activeRooms[roomName]) {
+            socket.emit('errorMsg', 'Bu isimde bir masa zaten var!');
+            return;
+        }
 
-        if (numClients < 2) {
-            socket.join(roomID);
-            // İlk gelen mor, ikinci gelen turuncu olur
-            const role = numClients === 0 ? 'mor' : 'turuncu';
-            socket.emit('playerRole', role);
-            
-            console.log(`ID: ${socket.id} | Masa: ${roomID} | Rol: ${role}`);
-            
-            // Eğer masa dolduysa oyunu başlatması için her iki tarafa haber ver
-            if (numClients === 1) {
-                io.to(roomID).emit('gameReady', "Oyun Başlıyor!");
-            }
-        } else {
-            socket.emit('errorMsg', 'Bu masa maalesef dolu!');
+        activeRooms[roomName] = {
+            name: roomName,
+            password: password || null,
+            count: 0,
+            isLocked: !!password
+        };
+
+        io.emit('roomList', activeRooms); // Lobiyi güncelle
+        socket.emit('roomCreated', roomName);
+    });
+
+    socket.on('joinGame', (data) => {
+        const { roomName, password } = data;
+        const room = activeRooms[roomName];
+
+        if (!room) {
+            socket.emit('errorMsg', 'Masa bulunamadı!');
+            return;
+        }
+        if (room.count >= 2) {
+            socket.emit('errorMsg', 'Masa dolu!');
+            return;
+        }
+        if (room.isLocked && room.password !== password) {
+            socket.emit('errorMsg', 'Hatalı şifre!');
+            return;
+        }
+
+        socket.join(roomName);
+        room.count++;
+        const role = (room.count === 1) ? 'mor' : 'turuncu';
+        
+        socket.emit('playerRole', role);
+        io.emit('roomList', activeRooms); // Sayıyı güncelle
+
+        if (room.count === 2) {
+            io.to(roomName).emit('gameReady', "Oyun Başladı!");
         }
     });
 
-    // Bir oyuncu hamle yaptığında diğerine ilet
     socket.on('move', (data) => {
-        // data şunları içermeli: { roomID, from, to, role }
         socket.to(data.roomID).emit('opponentMove', data);
     });
 
-    socket.on('disconnect', () => {
-        console.log('Oyuncu ayrıldı: ' + socket.id);
+    socket.on('disconnecting', () => {
+        for (const roomName of socket.rooms) {
+            if (activeRooms[roomName]) {
+                activeRooms[roomName].count--;
+                if (activeRooms[roomName].count <= 0) {
+                    delete activeRooms[roomName];
+                }
+                io.emit('roomList', activeRooms);
+            }
+        }
     });
 });
 
-// Render ve diğer platformlar için port ayarı
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Sunucu ${PORT} portunda canavar gibi çalışıyor...`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Sunucu aktif.`));
