@@ -36,12 +36,16 @@ io.on('connection', (socket) => {
     socket.on('hamle_yap', (data) => io.emit('hamle_geldi', data));
     socket.on('chat_gonder', (data) => io.emit('chat_geldi', data));
 
-    // Masadan manuel ayrılma veya bağlantı kopma
     const temizle = () => {
         if (masalar[socket.id]) {
+            io.emit('rakip_ayrildi', { oda: socket.id });
             delete masalar[socket.id];
             io.emit('liste_guncelle', masalar);
         }
+        // Oyuncu misafir ise bulunduğu odayı bul ve kapat
+        Object.keys(masalar).forEach(masaId => {
+            io.emit('rakip_ayrildi', { oda: masaId });
+        });
     };
 
     socket.on('disconnect', temizle);
@@ -49,4 +53,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu aktif.`));
+httpServer.listen(PORT, () => console.log(`Sunucu 2026 modunda aktif.`));
