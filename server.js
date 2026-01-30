@@ -9,20 +9,19 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 let rooms = {};
-let tournamentQueue = []; // Turnuva bekleyenler
+let tournamentQueue = []; 
 
 io.on('connection', (socket) => {
     socket.emit('roomList', getPublicRooms());
 
-    // --- STANDART MASA KURMA ---
     socket.on('createRoom', (data) => {
-        const { roomName, password } = data;
-        if (rooms[roomName]) return socket.emit('errorMsg', 'Bu masa adı alınmış!');
+        const { roomName, password, playerName } = data;
+        if (rooms[roomName]) return socket.emit('errorMsg', 'Bu masa adı dolu!');
         rooms[roomName] = {
             password: password || "",
             hasPass: !!password,
             players: {}, 
-            owner: socket.id, // İlk giren admin olur
+            owner: socket.id,
             ready: { mor: false, turuncu: false }
         };
         socket.emit('roomCreated', roomName);
@@ -36,46 +35,46 @@ io.on('connection', (socket) => {
         if (room.hasPass && room.password !== data.password) return socket.emit('errorMsg', 'Şifre yanlış!');
 
         const role = Object.keys(room.players).length === 0 ? 'mor' : 'turuncu';
-        room.players[socket.id] = { role, name: data.playerName || role };
+        room.players[socket.id] = { role, name: data.playerName };
         socket.role = role;
         socket.room = data.roomName;
+        socket.playerName = data.playerName;
         socket.join(data.roomName);
-        socket.emit('playerRole', { role, roomName: data.roomName });
+        socket.emit('playerRole', { role, roomName: data.roomName, playerName: data.playerName });
     });
 
-    // --- TURNUVA SİSTEMİ (4 KİŞİLİK) ---
     socket.on('joinTournament', (playerName) => {
         if (!tournamentQueue.find(p => p.id === socket.id)) {
             tournamentQueue.push({ id: socket.id, name: playerName });
             io.emit('tourUpdate', tournamentQueue.length);
             
             if (tournamentQueue.length === 4) {
-                const tourID = "TOUR_" + Date.now();
-                const players = [...tournamentQueue];
+                const tourID = "TOUR_" + Math.floor(Math.random() * 1000);
+                const p = [...tournamentQueue];
                 tournamentQueue = [];
-                // 1. Maç: Oyuncu 0 vs 1 | 2. Maç: Oyuncu 2 vs 3
-                io.to(players[0].id).to(players[1].id).emit('startTourMatch', { room: tourID + "_M1", opponent: "Yarı Final" });
-                io.to(players[2].id).to(players[3].id).emit('startTourMatch', { room: tourID + "_M2", opponent: "Yarı Final" });
+                // Eşleşmeleri yap ve gönder
+                io.to(p[0].id).emit('startTourMatch', { room: tourID+"_M1", opp: p[1].name });
+                io.to(p[1].id).emit('startTourMatch', { room: tourID+"_M1", opp: p[0].name });
+                io.to(p[2].id).emit('startTourMatch', { room: tourID+"_M2", opp: p[3].name });
+                io.to(p[3].id).emit('startTourMatch', { room: tourID+"_M2", opp: p[2].name });
+                io.emit('tourUpdate', 0);
             }
         }
     });
 
-    // --- SOHBET VE BAN ---
     socket.on('chatMsg', (data) => {
-        const badWords = ["küfür1", "küfür2"]; // Buraya engelenecek kelimeleri ekle
+        const badWords = ["küfür1", "küfür2"]; 
         let cleanMsg = data.msg;
         badWords.forEach(w => cleanMsg = cleanMsg.replace(new RegExp(w, 'gi'), '***'));
-        io.to(data.roomID).emit('newChat', { user: data.user, msg: cleanMsg, type: data.type });
+        io.to(data.roomID).emit('newChat', { user: data.user, msg: cleanMsg });
     });
 
     socket.on('kickPlayer', (roomID) => {
-        const room = rooms[roomID];
-        if (room && room.owner === socket.id) {
-            socket.to(roomID).emit('banned'); // Diğer oyuncuya ban gönder
+        if (rooms[roomID] && rooms[roomID].owner === socket.id) {
+            socket.to(roomID).emit('banned');
         }
     });
 
-    // Standart hazır olma ve hamle iletme... (Önceki kodlar dahil)
     socket.on('playerReady', (d) => {
         const room = rooms[d.roomID];
         if(room) {
@@ -83,7 +82,13 @@ io.on('connection', (socket) => {
             io.to(d.roomID).emit('updateReadyStatus', { morReady: room.ready.mor, turuncuReady: room.ready.turuncu });
         }
     });
+
     socket.on('move', (d) => socket.to(d.roomID).emit('opponentMove', d));
+
+    socket.on('disconnect', () => {
+        tournamentQueue = tournamentQueue.filter(p => p.id !== socket.id);
+        io.emit('tourUpdate', tournamentQueue.length);
+    });
 });
 
 function getPublicRooms() {
