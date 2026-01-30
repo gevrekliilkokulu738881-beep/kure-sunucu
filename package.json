@@ -1,3 +1,17 @@
-"scripts": {
-  "start": "node server.js"
+{
+  "name": "kure-online",
+  "version": "1.0.0",
+  "description": "Küre Strateji Oyunu Online",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
 }
