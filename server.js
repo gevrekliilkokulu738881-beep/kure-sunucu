@@ -20,11 +20,9 @@ io.on('connection', (socket) => {
         rooms[roomId] = { 
             id: roomId, 
             p1: { id: socket.id, name: data.name, color: 'mor' },
-            p2: null,
-            status: 'waiting'
+            p2: null, status: 'waiting'
         };
         io.emit('updateRooms', rooms);
-        socket.emit('waitingPlayer');
     });
 
     socket.on('joinRoom', (data) => {
@@ -54,4 +52,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log("Sunucu Hazir"));
+httpServer.listen(PORT, "0.0.0.0", () => console.log("Sunucu Hazir"));
