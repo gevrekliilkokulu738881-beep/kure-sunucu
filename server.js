@@ -41,8 +41,11 @@ io.on('connection', (socket) => {
             io.emit('rakip_ayrildi', { oda: socket.id });
             delete masalar[socket.id];
         } else {
-            Object.keys(masalar).forEach(masaId => {
-                io.emit('rakip_ayrildi', { oda: masaId });
+            Object.keys(masalar).forEach(mId => {
+                if (mId === socket.id) {
+                    io.emit('rakip_ayrildi', { oda: mId });
+                    delete masalar[mId];
+                }
             });
         }
         io.emit('liste_guncelle', masalar);
@@ -53,4 +56,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu 2026 modunda aktif.`));
+httpServer.listen(PORT, () => console.log(`Sunucu 2026 Fix modunda aktif.`));
