@@ -38,7 +38,7 @@ io.on('connection', (socket) => {
     const ayrilmaIslemi = () => {
         const odaId = socketOdaMap[socket.id];
         if (odaId) {
-            socket.to(odaId).emit('rakip_ayrildi');
+            socket.to(odaId).emit('rakip_ayrildi'); // Rakibe haber ver
             delete masalar[odaId];
             delete socketOdaMap[socket.id];
             io.emit('liste_guncelle', masalar);
@@ -50,4 +50,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu Eksiksiz Modda Yayında.`));
+httpServer.listen(PORT, () => console.log(`Sunucu Sorunsuz Modda.`));
