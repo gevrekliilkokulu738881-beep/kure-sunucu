@@ -6,26 +6,24 @@ const path = require('path');
 const app = express();
 const httpServer = createServer(app);
 
-// CORS ayarlarını Render güvenliği için esnettik
 const io = new Server(httpServer, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    transports: ['websocket', 'polling'] 
 });
 
-// Dosya yollarını garantiye alıyoruz
-const publicPath = path.join(__dirname, '.');
-app.use(express.static(publicPath));
+app.use(express.static(path.join(__dirname, '.')));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(publicPath, 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log('Bağlantı sağlandı:', socket.id);
+    console.log('Yeni baglanti:', socket.id);
     socket.emit('odalar', masalar);
 
     socket.on('oda_kur', (data) => {
@@ -66,8 +64,5 @@ io.on('connection', (socket) => {
     });
 });
 
-// Render'da 3000 portu bazen sorun çıkarabilir, bu yapı en güvenlisidir
-const PORT = process.env.PORT || 10000; 
-httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Sunucu ${PORT} portunda başarıyla ayağa kalktı.`);
-});
+const PORT = process.env.PORT || 10000;
+httpServer.listen(PORT, "0.0.0.0", () => console.log(`Sunucu aktif: ${PORT}`));
