@@ -5,15 +5,11 @@ const path = require('path');
 
 const app = express();
 const httpServer = createServer(app);
-
 const io = new Server(httpServer, {
-    cors: {
-        origin: "*", // Her yerden girişe izin ver
-        methods: ["GET", "POST"]
-    },
-    transports: ['websocket', 'polling'] // Bağlantı tipini zorla
+    cors: { origin: "*" }
 });
 
+// HTML ve diğer dosyaları sunmak için
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
@@ -23,7 +19,6 @@ app.get('/', (req, res) => {
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log('Oyuncu bağlandı:', socket.id);
     socket.emit('liste_guncelle', masalar);
 
     socket.on('masa_kur', (data) => {
@@ -70,4 +65,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, "0.0.0.0", () => console.log("Sunucu Aktif"));
+httpServer.listen(PORT, "0.0.0.0", () => console.log("Server Live on " + PORT));
