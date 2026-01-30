@@ -50,9 +50,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('hamle_yap', (data) => {
-        socket.to(data.oda).emit('hamle_geldi', data.yeniTahta);
-    });
-
+    // Gelen hamleyi ODA içindeki herkese (gönderen dahil) geri yolla
+    // data.oda burada kritik, boş gitmemeli!
+    if (data.oda) {
+        io.to(data.oda).emit('hamle_geldi', data);
+    }
+});
     socket.on('disconnect', () => {
         delete masalar[socket.id];
         io.emit('liste_guncelle', masalar);
@@ -61,4 +64,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
+
 
