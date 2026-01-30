@@ -7,7 +7,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
 let masalar = {}; 
-let socketOdaMap = {}; // Socket ID -> Oda ID
+let socketOdaMap = {}; 
 
 io.on('connection', (socket) => {
     socket.emit('liste_guncelle', masalar);
@@ -22,6 +22,8 @@ io.on('connection', (socket) => {
             durum: 'bekliyor'
         };
         socketOdaMap[socket.id] = odaId;
+        // Kurana başarılı olduğunu bildir
+        socket.emit('masa_kuruldu', { odaId });
         io.emit('liste_guncelle', masalar);
     });
 
@@ -36,12 +38,13 @@ io.on('connection', (socket) => {
             masalar[odaId].durum = 'dolu';
             socketOdaMap[socket.id] = odaId;
             io.emit('liste_guncelle', masalar);
+            // Odadaki her iki tarafa da oyunu başlat komutu gönder
             io.to(odaId).emit('oyun_basla', { oda: odaId });
         }
     });
 
     socket.on('hamle_yap', (data) => {
-        io.to(data.oda).emit('hamle_geldi', data);
+        socket.to(data.oda).emit('hamle_geldi', data);
     });
 
     socket.on('chat_gonder', (data) => {
@@ -51,13 +54,9 @@ io.on('connection', (socket) => {
     const temizle = () => {
         const odaId = socketOdaMap[socket.id];
         if (odaId) {
-            // ODADAKİ HERKESE AYRILMA BİLGİSİ GÖNDER
-            socket.to(odaId).emit('rakip_ayrildi', { oda: odaId });
-            
-            // Masayı sil
+            socket.to(odaId).emit('rakip_ayrildi');
             delete masalar[odaId];
             delete socketOdaMap[socket.id];
-            
             io.emit('liste_guncelle', masalar);
         }
     };
@@ -67,4 +66,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu Oda Sistemi Aktif.`));
+httpServer.listen(PORT, () => console.log(`Sunucu 2026 stabil modda.`));
