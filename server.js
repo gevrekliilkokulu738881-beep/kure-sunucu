@@ -9,50 +9,52 @@ const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"
 let masalar = {};
 
 io.on('connection', (socket) => {
-    console.log("Bağlantı sağlandı:", socket.id);
-    
-    // Bağlanan herkese güncel listeyi yolla
+    // Yeni bağlanan kullanıcıya güncel listeyi gönder
     socket.emit('liste_guncelle', masalar);
 
-   // server.js içindeki ilgili kısımları bu şekilde düzelt:
-
-socket.on('masa_kur', (data) => {
-    const masaId = socket.id;
-    masalar[masaId] = { id: masaId, isim: data.isim, durum: 'bekliyor' };
-    socket.join(masaId); // KURUCU ODAYA GİRER
-    io.emit('liste_guncelle', masalar);
-});
-
-socket.on('masaya_otur', (masaId) => {
-    if (masalar[masaId]) {
-        masalar[masaId].durum = 'dolu';
-        socket.join(masaId); // KATILAN ODAYA GİRER
+    // MASA KURMA (MOR OYUNCU)
+    socket.on('masa_kur', (data) => {
+        const masaId = socket.id;
+        masalar[masaId] = { id: masaId, isim: data.isim || "İsimsiz", durum: 'bekliyor' };
+        socket.join(masaId); // Kurucu odaya girer
         io.emit('liste_guncelle', masalar);
-        // İki tarafa da oyunun başladığını ve oda ID'sini bildir
-        io.to(masaId).emit('oyun_basla', { oda: masaId });
-    }
-});
+    });
 
-socket.on('hamle_yap', (data) => {
-    // Hamleyi odaya gönder (gönderen kişi hariç herkese gider)
-    if (data.oda) {
-        socket.to(data.oda).emit('hamle_geldi', data);
-    }
-});
-
-    socket.on('disconnect', () => {
-        console.log("Ayrıldı:", socket.id);
-        if (masalar[socket.id]) {
-            delete masalar[socket.id];
+    // MASAYA KATILMA (TURUNCU OYUNCU)
+    socket.on('masaya_otur', (masaId) => {
+        if (masalar[masaId] && masalar[masaId].durum === 'bekliyor') {
+            masalar[masaId].durum = 'dolu';
+            socket.join(masaId); // Katılan odaya girer
+            io.emit('liste_guncelle', masalar);
+            // Her iki tarafa da oyunun başladığını teyit et
+            io.to(masaId).emit('oyun_basla', { odaId: masaId });
         }
-        // Eğer katılan biriyse masayı tekrar 'bekliyor' moduna almak yerine güvenli olması için siliyoruz
-        for (let id in masalar) {
-            if (id === socket.id) delete masalar[id];
+    });
+
+    // HAMLE TRANSFERİ (KRİTİK NOKTA)
+    socket.on('hamle_yap', (data) => {
+        if (data.oda) {
+            // Hamleyi gönderen hariç odadaki diğer oyuncuya ilet
+            socket.to(data.oda).emit('hamle_geldi', data);
+        }
+    });
+
+    // AYRILMA DURUMU
+    socket.on('disconnect', () => {
+        if (masalar[socket.id]) {
+            io.to(socket.id).emit('rakip_ayrildi');
+            delete masalar[socket.id];
+        } else {
+            for (let id in masalar) {
+                if (io.sockets.adapter.rooms.get(id)?.size < 2) {
+                    io.to(id).emit('rakip_ayrildi');
+                    delete masalar[id];
+                }
+            }
         }
         io.emit('liste_guncelle', masalar);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda hazır.`));
-
+httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} aktif.`));
