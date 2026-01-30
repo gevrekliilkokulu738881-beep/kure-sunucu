@@ -6,21 +6,20 @@ const path = require('path');
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
+    cors: { origin: "*" }
 });
 
-// HTML dosyasını sunucunun bulabilmesi için bu satır ŞART
-app.use(express.static(path.join(__dirname, '.')));
+// Statik dosyaları sunmak için kritik satır
+app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 let masalar = {};
-let socketOdaMap = {};
-let revansIstekleri = {};
 
 io.on('connection', (socket) => {
+    console.log('Oyuncu geldi:', socket.id);
     socket.emit('liste_guncelle', masalar);
 
     socket.on('masa_kur', (data) => {
@@ -32,7 +31,6 @@ io.on('connection', (socket) => {
             turuncuIsim: "", 
             durum: 'bekliyor' 
         };
-        socketOdaMap[socket.id] = odaId;
         io.emit('liste_guncelle', masalar);
         socket.emit('bekleme_modu');
     });
@@ -43,7 +41,6 @@ io.on('connection', (socket) => {
             socket.join(id);
             masalar[id].turuncuIsim = data.isim || "Oyuncu 2";
             masalar[id].durum = 'dolu';
-            socketOdaMap[socket.id] = id;
             io.emit('liste_guncelle', masalar);
             io.to(id).emit('oyun_basla', { 
                 oda: id, 
@@ -58,14 +55,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        const odaId = socketOdaMap[socket.id];
-        if (odaId) {
-            socket.to(odaId).emit('rakip_ayrildi');
-            delete masalar[odaId];
+        // Soket ID'sine göre odayı bul ve sil
+        for (let id in masalar) {
+            if (id === "oda_" + socket.id || id === socket.id) {
+                socket.to(id).emit('rakip_ayrildi');
+                delete masalar[id];
+            }
         }
         io.emit('liste_guncelle', masalar);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`Sunucu ${PORT} portunda hazir.`));
+httpServer.listen(PORT, () => console.log("Küre Sunucusu Hazır!"));
