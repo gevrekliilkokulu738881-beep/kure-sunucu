@@ -20,7 +20,7 @@ io.on('connection', (socket) => {
             password: password || "",
             hasPass: !!password,
             players: {}, 
-            readyStatus: { mor: false, turuncu: false }
+            ready: { mor: false, turuncu: false }
         };
         socket.emit('roomCreated', roomName);
         io.emit('roomList', getPublicRooms());
@@ -33,6 +33,7 @@ io.on('connection', (socket) => {
         if (Object.keys(room.players).length >= 2) return socket.emit('errorMsg', 'Masa dolu!');
         if (room.hasPass && room.password !== password) return socket.emit('errorMsg', 'Hatalı şifre!');
 
+        // Rol ataması
         const role = Object.keys(room.players).length === 0 ? 'mor' : 'turuncu';
         room.players[socket.id] = role;
         socket.role = role;
@@ -43,17 +44,19 @@ io.on('connection', (socket) => {
         io.emit('roomList', getPublicRooms());
     });
 
-    // --- HAZIR SİSTEMİ ÇEKİRDEĞİ ---
+    // HAZIR SİSTEMİ - %100 SENKRONİZE
     socket.on('playerReady', (data) => {
         const room = rooms[data.roomID];
         if (room && socket.role) {
-            // Sunucu tarafında durumu güncelle
-            room.readyStatus[socket.role] = data.ready;
-            
-            // Odaya her iki tarafın güncel bilgisini bas
+            // Sunucu tarafında o role ait hazır bilgisini güncelle
+            room.ready[socket.role] = data.ready;
+
+            console.log(`Oda: ${data.roomID} | Mor: ${room.ready.mor} | Turuncu: ${room.ready.turuncu}`);
+
+            // Her iki tarafa da ODANIN son hazır durumunu gönder
             io.to(data.roomID).emit('updateReadyStatus', {
-                morReady: room.readyStatus.mor,
-                turuncuReady: room.readyStatus.turuncu
+                morReady: room.ready.mor,
+                turuncuReady: room.ready.turuncu
             });
         }
     });
