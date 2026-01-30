@@ -13,27 +13,35 @@ let rooms = {};
 io.on('connection', (socket) => {
     socket.emit('roomList', getPublicRooms());
 
+    // ŞİFRELİ MASA KURMA
     socket.on('createRoom', (data) => {
         const { roomName, password } = data;
         if (rooms[roomName]) return socket.emit('errorMsg', 'Bu isimde bir masa var!');
+        
         rooms[roomName] = {
-            password: password || "",
-            hasPass: !!password,
+            password: password || "", // Şifre varsa sakla, yoksa boş bırak
+            hasPass: !!password,      // Şifre var mı yok mu?
             players: {}, 
             ready: { mor: false, turuncu: false }
         };
+        
         socket.emit('roomCreated', roomName);
         io.emit('roomList', getPublicRooms());
     });
 
+    // ŞİFRE KONTROLLÜ GİRİŞ
     socket.on('joinGame', (data) => {
         const { roomName, password } = data;
         const room = rooms[roomName];
+
         if (!room) return socket.emit('errorMsg', 'Masa bulunamadı!');
         if (Object.keys(room.players).length >= 2) return socket.emit('errorMsg', 'Masa dolu!');
-        if (room.hasPass && room.password !== password) return socket.emit('errorMsg', 'Hatalı şifre!');
+        
+        // Şifre kontrolü
+        if (room.hasPass && room.password !== password) {
+            return socket.emit('errorMsg', 'Hatalı şifre! Lütfen tekrar deneyin.');
+        }
 
-        // Rol ataması
         const role = Object.keys(room.players).length === 0 ? 'mor' : 'turuncu';
         room.players[socket.id] = role;
         socket.role = role;
@@ -44,16 +52,10 @@ io.on('connection', (socket) => {
         io.emit('roomList', getPublicRooms());
     });
 
-    // HAZIR SİSTEMİ - %100 SENKRONİZE
     socket.on('playerReady', (data) => {
         const room = rooms[data.roomID];
         if (room && socket.role) {
-            // Sunucu tarafında o role ait hazır bilgisini güncelle
             room.ready[socket.role] = data.ready;
-
-            console.log(`Oda: ${data.roomID} | Mor: ${room.ready.mor} | Turuncu: ${room.ready.turuncu}`);
-
-            // Her iki tarafa da ODANIN son hazır durumunu gönder
             io.to(data.roomID).emit('updateReadyStatus', {
                 morReady: room.ready.mor,
                 turuncuReady: room.ready.turuncu
@@ -77,7 +79,10 @@ io.on('connection', (socket) => {
 function getPublicRooms() {
     let list = {};
     for (let name in rooms) {
-        list[name] = { players: Object.keys(rooms[name].players).length, hasPass: rooms[name].hasPass };
+        list[name] = { 
+            players: Object.keys(rooms[name].players).length, 
+            hasPass: rooms[name].hasPass // İstemciye kilit ikonu göstermesi için bilgi ver
+        };
     }
     return list;
 }
