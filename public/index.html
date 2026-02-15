@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YDS Master - Kelime, Metin, Deneme</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>YDS Master Çalışma Programı</h1>
+    <p>Kelime ezberleme, metin okuma ve deneme çözme paneli</p>
+  </header>
+
+  <nav class="menu">
+    <button data-tab="flashcards" class="active">Kelime Kartları</button>
+    <button data-tab="memorized">Ezberledim</button>
+    <button data-tab="later">Sonra Çalış</button>
+    <button data-tab="reading">Metin Okuma (100+)</button>
+    <button data-tab="exams">Denemeler (20)</button>
+  </nav>
+
+  <main>
+    <section id="flashcards" class="tab active">
+      <div class="toolbar">
+        <label>Seviye:
+          <select id="levelFilter">
+            <option value="all">Tümü</option>
+            <option value="easy">Kolay</option>
+            <option value="medium">Orta</option>
+            <option value="hard">Zor</option>
+          </select>
+        </label>
+        <span id="wordCounter"></span>
+      </div>
+      <article class="card" id="wordCard"></article>
+      <div class="actions">
+        <button id="memorizedBtn" class="ok">Ezberledim</button>
+        <button id="laterBtn" class="warn">Sonra Çalış</button>
+        <button id="nextBtn">Sonraki Kart</button>
+      </div>
+    </section>
+
+    <section id="memorized" class="tab">
+      <h2>Ezberlediklerim</h2>
+      <div id="memorizedList" class="list"></div>
+    </section>
+
+    <section id="later" class="tab">
+      <h2>Sonra Çalış</h2>
+      <div id="laterList" class="list"></div>
+    </section>
+
+    <section id="reading" class="tab">
+      <h2>Metin Okuma ve Paragraf Soruları</h2>
+      <div class="toolbar">
+        <label>Metin Seç:
+          <select id="textSelect"></select>
+        </label>
+      </div>
+      <article id="readingContent"></article>
+    </section>
+
+    <section id="exams" class="tab">
+      <h2>YDS Formatında Deneme Sınavları</h2>
+      <div class="toolbar">
+        <label>Deneme:
+          <select id="examSelect"></select>
+        </label>
+        <button id="startExamBtn">Denemeyi Başlat</button>
+      </div>
+      <div id="examContainer"></div>
+    </section>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
