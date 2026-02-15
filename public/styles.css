@@ -1,0 +1,22 @@
+:root { font-family: Arial, sans-serif; color-scheme: light; }
+body { margin: 0; background: #f7f9fc; color: #222; }
+header { background: #184fa1; color: #fff; padding: 1rem; text-align: center; }
+.menu { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; background: #fff; border-bottom: 1px solid #dfe4ec; }
+.menu button { border: 1px solid #cdd6e4; background: #f4f7fb; padding: 0.5rem 0.75rem; border-radius: 8px; cursor: pointer; }
+.menu button.active { background: #184fa1; color: #fff; }
+main { max-width: 980px; margin: 0 auto; padding: 1rem; }
+.tab { display: none; }
+.tab.active { display: block; }
+.card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card img { width: 100%; max-height: 240px; object-fit: cover; border-radius: 10px; margin: 0.5rem 0; }
+.actions { margin-top: 0.8rem; display: flex; gap: 0.6rem; }
+button { cursor: pointer; }
+button.ok { background: #1f9d55; color: #fff; border: none; padding: 0.6rem 0.8rem; border-radius: 8px; }
+button.warn { background: #d97706; color: #fff; border: none; padding: 0.6rem 0.8rem; border-radius: 8px; }
+#nextBtn, #startExamBtn { background: #184fa1; color: #fff; border: none; padding: 0.6rem 0.8rem; border-radius: 8px; }
+.toolbar { margin: 0.5rem 0 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.list { display: grid; gap: 0.8rem; }
+.list .item { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.7rem; }
+.question { background: #fff; border: 1px solid #dde4ee; border-radius: 8px; margin: 0.8rem 0; padding: 0.8rem; }
+.options label { display: block; margin: 0.25rem 0; }
+.explain { background: #eef6ff; border-left: 4px solid #184fa1; padding: 0.5rem; margin-top: 0.5rem; }
